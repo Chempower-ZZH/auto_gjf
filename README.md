@@ -244,8 +244,10 @@ This writes the following line to the output file:
 Example:
 
 ```bash
-python gjf2gjf.py mol.gjf -task spechk -old "$infile-$func" -func w
+python gjf2gjf.py mol.gjf -task spechk -old '$infile-$func' -func w
 ```
+
+Use single quotes around values that contain these `$...` tokens. Otherwise, the shell will try to expand `$infile`, `$func`, `$task`, or `$basis` before Python sees them. If you need double quotes, escape each dollar sign, for example `-old "\$infile-\$func"`.
 
 ### Output File Names
 
@@ -258,7 +260,7 @@ python gjf2gjf.py mol.gjf -task freq -out mol-freq.gjf
 `-out` supports the same `$infile`, `$task`, `$func`, and `$basis` tokens:
 
 ```bash
-python gjf2gjf.py mol.gjf -task opt -func CAM -basis def2TZVP -out "$infile-$task-$func.gjf"
+python gjf2gjf.py mol.gjf -task opt -func CAM -basis def2TZVP -out '$infile-$task-$func.gjf'
 ```
 
 ### Add Extra Gaussian Keywords
