@@ -1,157 +1,157 @@
 # auto_gjf
 
-`auto_gjf` 用于批量生成和改写 Gaussian 输入文件 (`.gjf`)。它可以从已有 `.gjf`、Gaussian `.log` 或 `.xyz` 坐标文件生成新的 `.gjf`，并通过预设的 `task`、泛函缩写、基组、电荷自旋、溶剂模型等参数快速组织常见计算任务。
+`auto_gjf` is a small toolkit for creating and rewriting Gaussian input files (`.gjf`). It can generate new Gaussian input files from existing `.gjf` files, Gaussian `.log` files, or `.xyz` coordinate files, and it provides predefined task templates and functional shortcuts for common computational workflows.
 
-## 下载方式
+## Download
 
-从 GitHub 克隆项目：
+Clone the repository from GitHub:
 
 ```bash
 git clone https://github.com/Chempower-ZZH/auto_gjf.git
 cd auto_gjf
 ```
 
-安装依赖：
+Install the Python dependency:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-目前依赖较少，`log2gjf.py` 需要 `periodictable` 用于根据原子序数恢复元素符号。
+The dependency list is intentionally small. `log2gjf.py` uses `periodictable` to convert atomic numbers from Gaussian log files into element symbols.
 
-## 文件说明
+## Files
 
-| 文件 | 用途 |
+| File | Purpose |
 | --- | --- |
-| `gjf2gjf.py` | 从已有 `.gjf` 生成新的 `.gjf`，保留坐标、电荷自旋等信息，并按新 task/泛函/基组重写 route section |
-| `xyz2gjf.py` | 从 `.xyz` 坐标文件生成 `.gjf` |
-| `log2gjf.py` | 从 Gaussian `.log` 文件提取坐标并生成 `.gjf` |
-| `common_gjf.py` | 存放通用参数、task 模板、泛函缩写、读写 `.gjf` 的公共逻辑 |
-| `requirements.txt` | Python 依赖 |
+| `gjf2gjf.py` | Rebuild a `.gjf` file from an existing `.gjf`, preserving coordinates and charge/spin while replacing the task, functional, basis set, and related keywords |
+| `xyz2gjf.py` | Convert an `.xyz` coordinate file into a `.gjf` file |
+| `log2gjf.py` | Extract coordinates from a Gaussian `.log` file and write a new `.gjf` file |
+| `common_gjf.py` | Shared task templates, functional shortcuts, argument definitions, and GJF read/write logic |
+| `requirements.txt` | Python dependencies |
 
-## 常规使用方式
+## Basic Usage
 
-所有脚本都可以直接用 `python` 调用。下面示例假设你已经在 `auto_gjf` 目录中。
+All scripts can be called directly with `python`. The examples below assume you are already inside the `auto_gjf` directory.
 
-### 从 XYZ 生成 GJF
+### Convert XYZ to GJF
 
 ```bash
 python xyz2gjf.py molecule.xyz -task opt
 ```
 
-输入文件可以写完整后缀，也可以省略 `.xyz`：
+The input file may be passed with or without the `.xyz` suffix:
 
 ```bash
 python xyz2gjf.py molecule -task freq -func B3BJ -basis def2TZVP -cs "0 1"
 ```
 
-### 从 Gaussian log 生成 GJF
+### Convert Gaussian Log to GJF
 
 ```bash
 python log2gjf.py job.log -task opt -func B3BJ -basis def2SVP
 ```
 
-`log2gjf.py` 会优先读取 `Standard orientation` 坐标；如果没有该字段，会尝试从 `Normal termination` 后的旧式坐标格式读取。
+`log2gjf.py` first tries to read coordinates from the `Standard orientation` block. If that block is unavailable, it falls back to the older coordinate format after `Normal termination`.
 
-### 从已有 GJF 改写 GJF
+### Rewrite an Existing GJF
 
 ```bash
 python gjf2gjf.py input.gjf -task freq -func B3BJ -basis def2SVP
 ```
 
-如果输入文件名省略 `.gjf` 后缀，脚本会自动补齐：
+If the input name is given without the `.gjf` suffix, the script adds it automatically:
 
 ```bash
 python gjf2gjf.py input -task opt
 ```
 
-### 使用 `%oldchk`
+### Use `%oldchk`
 
-部分任务需要读取旧 checkpoint，例如 `optchk`、`TSchk`、`IRC`、`spechk` 等。推荐显式传入 `-old`：
+Some tasks read geometry, basis, or wavefunction information from a checkpoint file. Examples include `optchk`, `TSchk`, `IRC`, and `spechk`. For these tasks, explicitly pass `-old`:
 
 ```bash
 python gjf2gjf.py input.gjf -task spechk -old input -out input-spe.gjf
 ```
 
-会在输出文件中写入：
+This writes the following line to the output file:
 
 ```text
 %oldchk=input.chk
 ```
 
-`-old` 支持变量替换：
+`-old` supports name tokens:
 
-| 变量 | 含义 |
+| Token | Meaning |
 | --- | --- |
-| `$infile` | 输入文件去掉路径和后缀后的名称 |
-| `$task` | 当前 task 名称 |
-| `$func` | 当前泛函缩写 |
-| `$basis` | 当前基组名称 |
+| `$infile` | Input file name without path or suffix |
+| `$task` | Current task name |
+| `$func` | Current functional shortcut |
+| `$basis` | Current basis set |
 
-示例：
+Example:
 
 ```bash
 python gjf2gjf.py mol.gjf -task spechk -old "$infile-$func" -func w
 ```
 
-### 输出文件名
+### Output File Names
 
-不指定 `-out` 时，默认输出文件名与输入文件同名，并自动补 `.gjf` 后缀。为了避免覆盖原文件，实际使用中建议显式指定 `-out`：
+If `-out` is omitted, the output name defaults to the input base name with a `.gjf` suffix. In day-to-day use, it is safer to specify `-out` explicitly to avoid overwriting files:
 
 ```bash
 python gjf2gjf.py mol.gjf -task freq -out mol-freq.gjf
 ```
 
-`-out` 同样支持 `$infile`、`$task`、`$func`、`$basis`：
+`-out` supports the same `$infile`, `$task`, `$func`, and `$basis` tokens:
 
 ```bash
 python gjf2gjf.py mol.gjf -task opt -func CAM -basis def2TZVP -out "$infile-$task-$func.gjf"
 ```
 
-### 添加额外关键词
+### Add Extra Gaussian Keywords
 
-使用 `-add` 可以在 route section 后追加额外 Gaussian 关键词：
+Use `-add` to append extra keywords to the route section:
 
 ```bash
 python gjf2gjf.py mol.gjf -task spechk -old mol -add "scrf=(SMD,solvent=Dichloromethane)"
 ```
 
-生成 TDDFT 单点的例子：
+Example for a TDDFT single-point input:
 
 ```bash
 python gjf2gjf.py mol.gjf -task spechk -old mol -func w -basis def2tzvp -add "td=(nstates=50)"
 ```
 
-### 在文件末尾追加内容
+### Append Extra Text at the End
 
-使用 `-end` 可以在 `.gjf` 末尾追加额外输入，例如约束、GIC 扫描定义、NBO 读取内容等：
+Use `-end` to append text at the end of the generated `.gjf` file. This is useful for constraints, GIC scan definitions, NBO input, orbital alteration instructions, and similar Gaussian sections:
 
 ```bash
 python xyz2gjf.py mol.xyz -task scan -end "B 1 2 S 20 1.800000"
 ```
 
-### 常用参数
+### Common Arguments
 
-| 参数 | 说明 | 默认值 |
+| Argument | Description | Default |
 | --- | --- | --- |
-| `-task` | 计算任务模板，必须从 `common_gjf.py` 的 `TASK_TYPES` 中选择 | 必填 |
-| `-func` | 泛函缩写，必须从 `common_gjf.py` 的 `FUNCTIONALS` 中选择 | `B3BJ` |
-| `-basis` | 基组 | `def2SVP` |
-| `-nproc` | `%nprocshared` 核数 | `96` |
-| `-mem` | `%mem` 内存 | `400GB` |
-| `-out` | 输出 `.gjf` 文件名 | 与输入同名 |
-| `-old` | `%oldchk` 的基础文件名，不需要写 `.chk` | 无 |
-| `-cs` | 电荷和自旋多重度，例如 `"0 1"` | `gjf2gjf.py` 读取原文件；其他脚本按默认值 |
-| `-add` | 追加到 route section 的关键词 | 空 |
-| `-end` | 追加到 `.gjf` 文件末尾的文本 | 空 |
+| `-task` | Calculation task template. Must be one of the keys in `TASK_TYPES` from `common_gjf.py` | Required |
+| `-func` | Functional shortcut. Must be one of the keys in `FUNCTIONALS` from `common_gjf.py` | `B3BJ` |
+| `-basis` | Basis set | `def2SVP` |
+| `-nproc` | Value for `%nprocshared` | `96` |
+| `-mem` | Value for `%mem` | `400GB` |
+| `-out` | Output `.gjf` file name | Same as input base name |
+| `-old` | Base name for `%oldchk`; do not include `.chk` | None |
+| `-cs` | Charge and spin multiplicity, for example `"0 1"` | `gjf2gjf.py` reads it from the input file; other scripts use their defaults |
+| `-add` | Extra keywords appended to the route section | Empty |
+| `-end` | Extra text appended at the end of the `.gjf` file | Empty |
 
-## 推荐的使用设置
+## Recommended Setup
 
-更推荐把脚本路径写入 `~/.bashrc`，并在每个计算项目目录中准备一个 `methods.sh`，这样日常命令可以更短，也能保证同一项目使用一致的泛函、基组和溶剂设置。
+The recommended workflow is to add aliases or wrapper functions to `~/.bashrc`, and to keep a `methods.sh` file in each computational project directory. This keeps daily commands short and makes the computational settings for each project explicit and reproducible.
 
-### 添加 alias
+### Add Aliases
 
-把下面内容加入 `~/.bashrc`。请按你的实际安装位置修改 `AUTO_GJF_HOME`：
+Add the following lines to `~/.bashrc`. Adjust `AUTO_GJF_HOME` to match your installation path:
 
 ```bash
 export AUTO_GJF_HOME="/mnt/d/4-Area/Python/tools/Coordinate-Manipulating/auto_gjf"
@@ -161,13 +161,13 @@ alias xyz2gjf='python "$AUTO_GJF_HOME/xyz2gjf.py"'
 alias log2gjf='python "$AUTO_GJF_HOME/log2gjf.py"'
 ```
 
-使设置立即生效：
+Reload your shell configuration:
 
 ```bash
 source ~/.bashrc
 ```
 
-之后可以直接运行：
+Then the scripts can be called from any working directory:
 
 ```bash
 gjf2gjf mol.gjf -task freq
@@ -175,9 +175,9 @@ xyz2gjf mol.xyz -task opt
 log2gjf mol.log -task opt
 ```
 
-### 为每个项目准备 `methods.sh`
+### Create a `methods.sh` for Each Project
 
-推荐每个计算项目目录都放一个 `methods.sh`，用于集中记录该项目采用的方法：
+For each computational project, prepare a local `methods.sh` file:
 
 ```bash
 func=B3BJ
@@ -186,18 +186,18 @@ sfunc=w
 solvent=Dichloromethane
 ```
 
-其中：
+Suggested meaning of these variables:
 
-| 变量 | 推荐用途 |
+| Variable | Recommended use |
 | --- | --- |
-| `func` | 结构优化、频率、TS、IRC 等主计算使用的泛函缩写 |
-| `basis` | 主计算使用的基组 |
-| `sfunc` | 单点、溶剂、TDDFT 等后续计算使用的泛函缩写 |
-| `solvent` | SMD/PCM 使用的溶剂名称 |
+| `func` | Functional shortcut for main calculations such as optimization, frequency, TS, and IRC jobs |
+| `basis` | Basis set for the main calculations |
+| `sfunc` | Functional shortcut for follow-up calculations such as single-point, solvent, and TDDFT jobs |
+| `solvent` | Solvent name used by SMD or PCM jobs |
 
-### 添加基于 `methods.sh` 的快捷函数
+### Add `methods.sh`-Aware Wrappers
 
-下面的 `gg` 和 `xg` 会读取当前目录的 `methods.sh`，自动把 `func` 和 `basis` 传给 `gjf2gjf` 或 `xyz2gjf`：
+The following `gg` and `xg` functions read `methods.sh` from the current directory and automatically pass `func` and `basis` to `gjf2gjf` or `xyz2gjf`:
 
 ```bash
 gg() {
@@ -225,22 +225,22 @@ xg() {
 }
 ```
 
-使用示例：
+Examples:
 
 ```bash
 xg mol.xyz -task opt -out mol-opt.gjf
 gg mol-opt.gjf -task freq -out mol-freq.gjf
 ```
 
-这相当于自动补上：
+These commands automatically append:
 
 ```bash
 -func "$func" -basis "$basis"
 ```
 
-### 推荐的快捷函数示例
+### Additional Shortcut Functions
 
-下面这些函数参考了实际 `.bashrc` 中的用法，适合处理常见后续任务。
+The following examples are based on the author's personal `~/.bashrc` workflow and are useful for common follow-up calculations.
 
 #### IRC
 
@@ -270,7 +270,7 @@ IRCF() {
 }
 ```
 
-示例：
+Examples:
 
 ```bash
 IRC TS-example-B3BJ.gjf
@@ -278,7 +278,7 @@ IRCR TS-example-B3BJ.gjf
 IRCF TS-example-B3BJ.gjf
 ```
 
-#### SMD/PCM 单点
+#### SMD and PCM Single-Point Jobs
 
 ```bash
 SMD() {
@@ -325,7 +325,7 @@ PCM() {
 }
 ```
 
-示例：
+Examples:
 
 ```bash
 SMD mol-B3BJ.gjf Dichloromethane
@@ -333,7 +333,7 @@ SMD mol-B3BJ.gjf Toluene w
 PCM mol-B3BJ.gjf Dichloromethane
 ```
 
-如果配合 `methods.sh`，还可以再包装一层：
+If you use `methods.sh`, you can add one more wrapper layer:
 
 ```bash
 SMD1() {
@@ -357,7 +357,7 @@ PCM1() {
 }
 ```
 
-#### TS 和 TDDFT
+#### TS and TDDFT
 
 ```bash
 TS() {
@@ -389,7 +389,7 @@ TDCS() {
 }
 ```
 
-示例：
+Examples:
 
 ```bash
 TS mol-fix-B3BJ.gjf
@@ -399,11 +399,11 @@ TDC mol
 TDCS mol Dichloromethane
 ```
 
-## 泛函缩写
+## Functional Shortcuts
 
-`-func` 参数使用 `common_gjf.py` 中定义的缩写。当前包含：
+The `-func` argument must use one of the shortcuts defined in `FUNCTIONALS` in `common_gjf.py`.
 
-| 缩写 | Gaussian 写法 |
+| Shortcut | Gaussian keyword |
 | --- | --- |
 | `B3` | `B3LYP` |
 | `B3D3` | `B3LYP em=GD3` |
@@ -421,11 +421,11 @@ TDCS mol Dichloromethane
 | `MN15` | `MN15` |
 | `MN15L` | `MN15L` |
 
-## 已包含的 task
+## Available Tasks
 
-`-task` 参数使用 `common_gjf.py` 中定义的任务模板。当前包含：
+The `-task` argument must use one of the task templates defined in `TASK_TYPES` in `common_gjf.py`.
 
-| task | route section 模板 |
+| Task | Route section template |
 | --- | --- |
 | `fix` | `#p opt=(addred,loose) freq nosymm pop=NPA int=ultrafine` |
 | `fixchk` | `#p opt=(addred,loose) freq nosymm pop=NPA int=ultrafine guess=read chkbas geom=check` |
@@ -455,12 +455,12 @@ TDCS mol Dichloromethane
 | `alt` | `#p pop=NPA geom=chk guess=(read,alter) chkbas` |
 | `stable` | `#p pop=NPA geom=chk chkbas stable=opt` |
 
-## 注意事项
+## Notes
 
-- 默认资源设置是 `%nprocshared=96` 和 `%mem=400GB`，适合高资源环境。提交任务前请根据机器或集群实际情况调整 `-nproc` 和 `-mem`。
-- 涉及 `geom=check`、`geom=allcheck`、`guess=read` 的 task 通常需要 `%oldchk`。建议总是显式传入 `-old`，避免交互式提示中断批处理。
-- `gjf2gjf.py` 会读取原 `.gjf` 的坐标和电荷自旋；`xyz2gjf.py` 默认电荷自旋为空时会写为 `0 1`；`log2gjf.py` 默认也是 `0 1`。
-- 生成的 `.gjf`、`.chk`、`.log`、`.xyz` 等计算文件通常不建议提交到 Git，当前 `.gitignore` 已忽略这些类型。
+- The default resource settings are `%nprocshared=96` and `%mem=400GB`. They are intended for a high-resource environment. Adjust `-nproc` and `-mem` before submitting jobs on a different machine or cluster.
+- Tasks containing `geom=check`, `geom=allcheck`, or `guess=read` usually require `%oldchk`. Passing `-old` explicitly is recommended, especially for batch workflows.
+- `gjf2gjf.py` reads coordinates and charge/spin from the input `.gjf`; `xyz2gjf.py` writes `0 1` when charge/spin is not provided; `log2gjf.py` defaults to `0 1`.
+- Generated `.gjf`, `.chk`, `.log`, and `.xyz` calculation files are usually not meant to be committed. The current `.gitignore` ignores these file types.
 
 ## License
 
