@@ -11,10 +11,22 @@ git clone https://github.com/Chempower-ZZH/auto_gjf.git
 cd auto_gjf
 ```
 
+In WSL, Windows drives are usually mounted under `/mnt`. For example, the Windows `D:` drive is available as `/mnt/d`, and a project on `D:\Project\auto_gjf` can be reached as:
+
+```bash
+cd /mnt/d/Project/auto_gjf
+```
+
 Install the Python dependency:
 
 ```bash
 pip install -r requirements.txt
+```
+
+If your system uses `python3` and `pip3` instead of `python` and `pip`, use:
+
+```bash
+pip3 install -r requirements.txt
 ```
 
 The dependency list is intentionally small. `log2gjf.py` uses `periodictable` to convert atomic numbers from Gaussian log files into element symbols.
@@ -31,9 +43,106 @@ The dependency list is intentionally small. `log2gjf.py` uses `periodictable` to
 
 ## Basic Usage
 
-All scripts can be called directly with `python`. The examples below assume you are already inside the `auto_gjf` directory.
+All scripts can be called directly with `python` in a WSL/Linux terminal. If you are new to Python command-line tools, the most important pattern is:
+
+```bash
+python script_name.py input_file -argument option
+```
+
+If `python` is not available on your system, replace it with `python3`:
+
+```bash
+python3 script_name.py input_file -argument option
+```
+
+For example:
+
+```bash
+python gjf2gjf.py input.gjf -task freq -func B3BJ -basis def2SVP
+```
+
+This command has four parts:
+
+| Part | Example | Meaning |
+| --- | --- | --- |
+| `python` | `python` | Run the script with Python |
+| Script name | `gjf2gjf.py` | The Python script you want to use |
+| Input file | `input.gjf` | The file you want to convert or rewrite |
+| Arguments and options | `-task freq -func B3BJ` | Settings passed to the script |
+
+In this README, a word beginning with `-` is an **argument name**. The value after it is the **option/value** for that argument.
+
+Examples:
+
+| Argument | Option/value | Meaning |
+| --- | --- | --- |
+| `-task` | `freq` | Use the predefined `freq` task template |
+| `-func` | `B3BJ` | Use the `B3BJ` functional shortcut |
+| `-basis` | `def2SVP` | Use the `def2SVP` basis set |
+| `-out` | `mol-freq.gjf` | Write the output to `mol-freq.gjf` |
+| `-cs` | `"0 1"` | Set charge and spin multiplicity to `0 1` |
+
+Arguments can usually be written in any order after the input file:
+
+```bash
+python gjf2gjf.py input.gjf -task freq -func B3BJ -basis def2SVP
+python gjf2gjf.py input.gjf -basis def2SVP -func B3BJ -task freq
+```
+
+These two commands mean the same thing.
+
+Before running the examples below, enter the repository directory:
+
+```bash
+cd auto_gjf
+```
+
+If the repository is stored somewhere else, use the actual path. For example:
+
+```bash
+cd /mnt/d/4-Area/Python/tools/Coordinate-Manipulating/auto_gjf
+```
+
+You can also check the available arguments for any script with `-h`:
+
+```bash
+python gjf2gjf.py -h
+python xyz2gjf.py -h
+python log2gjf.py -h
+```
+
+### Which Script Should I Use?
+
+Choose the script based on your input file:
+
+| Starting file | Script to use | Typical command pattern |
+| --- | --- | --- |
+| Existing Gaussian input file, `.gjf` | `gjf2gjf.py` | `python gjf2gjf.py input.gjf -task TASK -func FUNC -basis BASIS` |
+| XYZ coordinate file, `.xyz` | `xyz2gjf.py` | `python xyz2gjf.py input.xyz -task TASK -func FUNC -basis BASIS` |
+| Gaussian output file, `.log` | `log2gjf.py` | `python log2gjf.py input.log -task TASK -func FUNC -basis BASIS` |
+
+Most daily commands set at least these arguments:
+
+| Argument | When to set it | Example |
+| --- | --- | --- |
+| `-task` | Almost always. It decides what Gaussian job will be generated | `-task opt` |
+| `-func` | Usually. It chooses the functional shortcut | `-func B3BJ` |
+| `-basis` | Usually. It chooses the basis set | `-basis def2SVP` |
+| `-out` | Recommended. It avoids accidentally overwriting an input file | `-out mol-opt.gjf` |
+| `-old` | Needed for checkpoint-based tasks such as `spechk`, `optchk`, `TSchk`, and `IRC` | `-old mol-opt` |
+| `-cs` | Needed when the charge/spin is not `0 1`, or when converting from `.xyz`/`.log` | `-cs "1 2"` |
+
+If you are just starting, use this conservative pattern:
+
+```bash
+python script_name.py input_file -task TASK -func FUNC -basis BASIS -out output.gjf
+```
+
+Then add `-old`, `-cs`, `-add`, or `-end` only when the job requires them.
 
 ### Convert XYZ to GJF
+
+Use `xyz2gjf.py` when your starting file is an `.xyz` coordinate file.
 
 ```bash
 python xyz2gjf.py molecule.xyz -task opt
@@ -45,7 +154,26 @@ The input file may be passed with or without the `.xyz` suffix:
 python xyz2gjf.py molecule -task freq -func B3BJ -basis def2TZVP -cs "0 1"
 ```
 
+What this command means:
+
+| Command part | Meaning |
+| --- | --- |
+| `python xyz2gjf.py` | Run the XYZ-to-GJF converter |
+| `molecule` | Read `molecule.xyz`; the suffix is added automatically |
+| `-task freq` | Generate a frequency-job route section |
+| `-func B3BJ` | Use the `B3BJ` functional shortcut |
+| `-basis def2TZVP` | Use the `def2TZVP` basis set |
+| `-cs "0 1"` | Use charge `0` and spin multiplicity `1` |
+
+A more explicit beginner-friendly command is:
+
+```bash
+python xyz2gjf.py molecule.xyz -task opt -func B3BJ -basis def2SVP -cs "0 1" -out molecule-opt.gjf
+```
+
 ### Convert Gaussian Log to GJF
+
+Use `log2gjf.py` when your starting file is a Gaussian `.log` output file and you want to extract the final coordinates into a new `.gjf`.
 
 ```bash
 python log2gjf.py job.log -task opt -func B3BJ -basis def2SVP
@@ -53,7 +181,15 @@ python log2gjf.py job.log -task opt -func B3BJ -basis def2SVP
 
 `log2gjf.py` first tries to read coordinates from the `Standard orientation` block. If that block is unavailable, it falls back to the older coordinate format after `Normal termination`.
 
+For charged or open-shell systems, set `-cs` explicitly:
+
+```bash
+python log2gjf.py job.log -task opt -func B3BJ -basis def2SVP -cs "1 2" -out job-opt.gjf
+```
+
 ### Rewrite an Existing GJF
+
+Use `gjf2gjf.py` when your starting file is already a Gaussian `.gjf` input file. This is the most common script for follow-up jobs.
 
 ```bash
 python gjf2gjf.py input.gjf -task freq -func B3BJ -basis def2SVP
@@ -65,6 +201,14 @@ If the input name is given without the `.gjf` suffix, the script adds it automat
 python gjf2gjf.py input -task opt
 ```
 
+For clarity, beginners should usually write the output file explicitly:
+
+```bash
+python gjf2gjf.py input.gjf -task freq -func B3BJ -basis def2SVP -out input-freq.gjf
+```
+
+`gjf2gjf.py` reads the original coordinates and charge/spin from `input.gjf`, then writes a new `.gjf` with the selected task, functional, and basis set.
+
 ### Use `%oldchk`
 
 Some tasks read geometry, basis, or wavefunction information from a checkpoint file. Examples include `optchk`, `TSchk`, `IRC`, and `spechk`. For these tasks, explicitly pass `-old`:
@@ -72,6 +216,15 @@ Some tasks read geometry, basis, or wavefunction information from a checkpoint f
 ```bash
 python gjf2gjf.py input.gjf -task spechk -old input -out input-spe.gjf
 ```
+
+Here:
+
+| Command part | Meaning |
+| --- | --- |
+| `input.gjf` | The input structure file |
+| `-task spechk` | Generate a checkpoint-based single-point job |
+| `-old input` | Write `%oldchk=input.chk` |
+| `-out input-spe.gjf` | Save the new Gaussian input as `input-spe.gjf` |
 
 This writes the following line to the output file:
 
@@ -116,6 +269,12 @@ Use `-add` to append extra keywords to the route section:
 python gjf2gjf.py mol.gjf -task spechk -old mol -add "scrf=(SMD,solvent=Dichloromethane)"
 ```
 
+Because the value after `-add` often contains spaces or parentheses, put the whole value inside quotes:
+
+```bash
+-add "scrf=(SMD,solvent=Dichloromethane)"
+```
+
 Example for a TDDFT single-point input:
 
 ```bash
@@ -129,6 +288,8 @@ Use `-end` to append text at the end of the generated `.gjf` file. This is usefu
 ```bash
 python xyz2gjf.py mol.xyz -task scan -end "B 1 2 S 20 1.800000"
 ```
+
+As with `-add`, use quotes when the value contains spaces.
 
 ### Common Arguments
 
